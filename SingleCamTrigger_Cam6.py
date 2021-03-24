@@ -15,8 +15,6 @@ MONKEY, DURATION, FRAME_RATE = MonkeyFrames()
 DATE        = datetime.now().strftime("%Y%m%d")
 MONKEY_DATE = '%s_%s' % (MONKEY, DATE)
 
-FRAME_RATE  = 25   # determined by Vicon trigger pulses
-
 NUM_IMAGES  = FRAME_RATE * DURATION  # total number of images to be acquired per camera
 
 TS_IMAGES   = []  # timestamps for individual acquired images
@@ -26,6 +24,28 @@ class TriggerType:
     HARDWARE = 2
 
 CHOSEN_TRIGGER = TriggerType.HARDWARE
+
+def configure_exposure(cam):
+    
+    print('*** CONFIGURING EXPOSURE ***\n')
+
+    try:
+        result = True
+        
+        cam.ExposureAuto.SetValue(PySpin.ExposureAuto_Off)
+        print('Automatic exposure disabled...')
+        
+        # Ensure desired exposure time does not exceed the maximum
+        exposure_time_to_set = 10000   # microseconds
+        exposure_time_to_set = min(cam.ExposureTime.GetMax(), exposure_time_to_set)
+        cam.ExposureTime.SetValue(exposure_time_to_set)
+        print('Shutter time set to %s us...\n' % exposure_time_to_set)
+
+    except PySpin.SpinnakerException as ex:
+        print('Error: %s' % ex)
+        result = False
+
+    return result
 
 def configure_trigger(cam):
     """
@@ -319,6 +339,10 @@ def main():
         cam.Init()
         # Retrieve GenICam nodemap
         nodemap = cam.GetNodeMap()
+
+        # Configure exposure
+        if configure_exposure(cam) is False:
+            return False
 
         # Configure trigger
         if configure_trigger(cam) is False:
